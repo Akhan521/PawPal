@@ -18,7 +18,8 @@ class Task:
     completed: bool = False
 
     def mark_completed(self) -> None:
-        pass
+        """Mark this task as completed."""
+        self.completed = True
 
 
 @dataclass
@@ -29,10 +30,13 @@ class Pet:
     tasks: list[Task] = field(default_factory=list)
 
     def add_task(self, task: Task) -> None:
-        pass
+        """Add a task and stamp it with this pet's name."""
+        task.pet_name = self.name
+        self.tasks.append(task)
 
     def remove_task(self, task: Task) -> None:
-        pass
+        """Remove a task from this pet's task list."""
+        self.tasks.remove(task)
 
 
 @dataclass
@@ -42,15 +46,47 @@ class Owner:
     pets: list[Pet] = field(default_factory=list)
 
     def add_pet(self, pet: Pet) -> None:
-        pass
+        """Add a pet to this owner's pet list."""
+        self.pets.append(pet)
 
     def remove_pet(self, pet: Pet) -> None:
-        pass
+        """Remove a pet from this owner's pet list."""
+        self.pets.remove(pet)
 
 
 class Scheduler:
     def generate_schedule(self, owner: Owner) -> list[Task]:
-        pass
+        """Build a priority-sorted daily schedule within the owner's time budget."""
+        all_tasks = []
+        for pet in owner.pets:
+            for task in pet.tasks:
+                if not task.completed:
+                    all_tasks.append(task)
+
+        all_tasks.sort(key=lambda t: t.priority, reverse=True)
+
+        scheduled = []
+        remaining_minutes = owner.available_minutes
+        for task in all_tasks:
+            if task.duration_minutes <= remaining_minutes:
+                scheduled.append(task)
+                remaining_minutes -= task.duration_minutes
+
+        return scheduled
 
     def explain_schedule(self, schedule: list[Task]) -> str:
-        pass
+        """Return a human-readable summary of the scheduled tasks."""
+        if not schedule:
+            return "No tasks scheduled for today."
+
+        lines = []
+        total_minutes = 0
+        for i, task in enumerate(schedule, start=1):
+            lines.append(
+                f"{i}. {task.title} ({task.pet_name}) - "
+                f"{task.duration_minutes} min [{task.priority.name}]"
+            )
+            total_minutes += task.duration_minutes
+
+        lines.append(f"\nTotal: {total_minutes} minutes")
+        return "\n".join(lines)
