@@ -22,6 +22,14 @@ As mentioned above, our UML design will include four core classes: Owner, Pet, T
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
+Yes, our design changed in three ways during implementation:
+
+1. **Scheduler became stateless.** Originally it stored `owner`, `pet`, and `available_minutes` as attributes. We removed those and made `generate_schedule(owner)` accept the Owner as a parameter instead, since the Scheduler doesn't need to hold state; it just processes inputs and returns a plan.
+
+2. **Priority changed from `str` to `IntEnum`.** A free-form string like `"high"` can't be sorted or compared directly. Using `IntEnum` (LOW=1, MEDIUM=2, HIGH=3) gives natural ordering, which keeps the scheduling logic clean.
+
+3. **Added `pet_name` to Task.** The scheduler collects tasks across all pets into a flat list. Without a back-reference, there's no way to tell which pet a task belongs to when displaying the schedule. Adding `pet_name` solves this without introducing a circular reference.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

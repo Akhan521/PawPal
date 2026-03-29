@@ -1,12 +1,20 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+from enum import IntEnum
+
+
+class Priority(IntEnum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
 
 
 @dataclass
 class Task:
     title: str
     duration_minutes: int
-    priority: str  # "low", "medium", or "high"
+    priority: Priority
+    pet_name: str = ""
     completed: bool = False
 
     def mark_completed(self) -> None:
