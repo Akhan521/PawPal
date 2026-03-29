@@ -2,10 +2,20 @@
 
 ## 1. System Design
 
+Three core actions include:
+1. Adding a pet
+2. Viewing the current day's schedule
+3. Adding or editing tasks for the current day
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+
+Our initial UML design will include four core classes: Owner, Pet, Task, and Scheduler. The owner class will contain all information regarding the owner and their pets. The pet class will contain all information regarding the pet, such as their name, species, and age. The task class will contain all information regarding the task, such as the task name, duration, and priority. The scheduler class will contain the logic for scheduling the tasks for the current day.
+
 - What classes did you include, and what responsibilities did you assign to each?
+
+As mentioned above, our UML design will include four core classes: Owner, Pet, Task, and Scheduler. The owner should be able to add or edit pets and view the pets they have. Pets should be able to have tasks assigned to them and view the tasks they have. We should be able to edit tasks to change the duration or priority. Lastly, we should be able to specify the logic for scheduling the tasks for the current day.
 
 **b. Design changes**
 
