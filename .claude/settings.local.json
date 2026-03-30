@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python -m pytest tests/test_pawpal.py -v)",
-      "Bash(python main.py)",
-      "Bash(python -c \"import app\")"
-    ]
-  }
-}
