@@ -1,36 +1,66 @@
 # PawPal+ (Module 2 Project)
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
+**PawPal+** is a Streamlit app that helps a pet owner plan daily care tasks for one or more pets. It was designed UML-first, implemented in Python, and wired to an interactive UI.
 
-## Scenario
+## Demo
 
-A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
+### Owner Setup and Pet Registration
+![Owner info and pet registration](screenshots/screenshot_1.png)
 
-- Track pet care tasks (walks, feeding, meds, enrichment, grooming, etc.)
-- Consider constraints (time available, priority, owner preferences)
-- Produce a daily plan and explain why it chose that plan
+Set your name and daily time budget, then add pets with name, species, and age.
 
-Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
+### Initial State — No Pets Yet
+![Add a task prompt and daily schedule](screenshots/screenshot_2.png)
 
-## What you will build
+Before any pets are added, the app prompts you to add a pet first before creating tasks.
 
-Your final app should:
+### Pet Added Successfully
+![Pet added with confirmation and table](screenshots/screenshot_3.png)
 
-- Let a user enter basic owner + pet info
-- Let a user add/edit tasks (duration + priority at minimum)
-- Generate a daily schedule/plan based on constraints and priorities
-- Display the plan clearly (and ideally explain the reasoning)
-- Include tests for the most important scheduling behaviors
+After adding a pet, a success banner confirms the addition and a table displays all registered pets.
 
-## Getting started
+### Task Creation
+![Task form with time, priority, and recurrence options](screenshots/screenshot_4.png)
 
-### Setup
+Create tasks with a title, duration, priority level, optional scheduled time, and recurrence settings.
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
+### Task Table, Filtering, and Schedule Generation
+![Filtered task table, generated schedule, and conflict check](screenshots/screenshot_5.png)
+
+View all tasks in a sortable, filterable table. Generate a daily schedule with conflict detection — a green banner confirms the schedule is conflict-free.
+
+## Features
+
+### Core Data Model
+- **Owner** — stores the owner's name, daily time budget (`available_minutes`), and a list of pets
+- **Pet** — stores name, species, age, and an associated task list. Handles task lifecycle including recurring task auto-scheduling via `complete_task()`
+- **Task** — each task carries a title, duration, priority, optional scheduled time (`HH:MM`), and recurrence settings. Implemented as a `@dataclass` with `dataclasses.replace` for immutable next-occurrence creation
+- **Priority (`IntEnum`)** — `LOW=1`, `MEDIUM=2`, `HIGH=3`. Numeric values enable direct comparison for greedy scheduling sort order
+
+### Scheduling Algorithm
+- **Greedy knapsack** (`Scheduler.generate_schedule`) — collects all incomplete tasks across every pet, sorts descending by `Priority` value, and greedily packs tasks into the owner's available minutes until the budget is exhausted
+- **Human-readable explanation** (`Scheduler.explain_schedule`) — produces a numbered summary with per-task details (pet, date, time, duration, priority, recurrence) and a total-minutes footer
+
+### Sorting and Filtering
+- **Chronological sort** (`sort_by_time`) — sorts tasks by `HH:MM` using a `(bool, str)` tuple key so that tasks without a time slot are pushed to the end while timed tasks sort lexicographically
+- **Filter by pet** (`filter_by_pet`) — narrows a task list to a single pet by matching `pet_name`
+- **Filter by status** (`filter_by_status`) — splits tasks into pending or completed subsets
+
+### Recurring Tasks
+- **Automatic rescheduling** (`Task.mark_completed`) — when a recurring task is completed, `timedelta` calculates the next occurrence date using `INTERVAL_DAYS` (daily=1, weekly=7, biweekly=14, monthly=30) and returns a new `Task` instance via `dataclasses.replace`
+- **Pet-level integration** (`Pet.complete_task`) — marks the task done and appends the next occurrence directly to the pet's task list
+
+### Conflict Detection
+- **Pairwise overlap check** (`Scheduler.detect_conflicts`) — converts `HH:MM` strings to minutes, precomputes start/end windows, and compares every pair of timed tasks. An early break on the sorted list skips impossible overlaps
+- **Labelled warnings** — each conflict is classified as "Same-pet conflict" (one pet, two overlapping tasks) or "Owner conflict" (different pets, same owner time slot). Malformed times are silently skipped
+
+### Streamlit UI
+- Owner setup with configurable daily time budget
+- Multi-pet support with duplicate-name prevention
+- Task creation with time, priority, and recurrence controls
+- Live filtering by pet and completion status with sorted table display
+- Conflict detection banner (`st.warning` / `st.success`) shown inline after tasks and after schedule generation
+- Recurring tasks summary in a collapsible expander
 
 ### Smarter Scheduling
 
@@ -41,13 +71,29 @@ The Scheduler in `pawpal_system.py` goes beyond basic priority sorting with thes
 - **Recurring tasks** (`mark_completed`, `complete_task`) — When a recurring task is completed, `timedelta` calculates the next occurrence date (daily, weekly, biweekly, or monthly) and a new Task instance is auto-added to the pet's list.
 - **Conflict detection** (`detect_conflicts`) — Compares every pair of timed tasks using precomputed start/end minutes. Labels overlaps as "Same-pet conflict" or "Owner conflict" (cross-pet). An early break on the sorted list avoids unnecessary comparisons. Malformed times are skipped gracefully.
 
-### Testing PawPal+
+## Getting Started
 
-Activate the virtual environment and run the test suite:
+### Setup
 
 ```bash
-source venv/Scripts/activate   # Windows
-# source venv/bin/activate     # macOS / Linux
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Running the Streamlit App
+
+```bash
+streamlit run app.py
+```
+
+The app will open in your browser at `http://localhost:8501`. From there you can add pets, create tasks, and generate a daily schedule.
+
+### Testing PawPal+
+
+Run the test suite:
+
+```bash
 python -m pytest tests/test_pawpal.py -v
 ```
 
@@ -100,13 +146,3 @@ These guard against the most common failure modes: empty inputs, stale data, and
 | `test_filter_by_status` | `filter_by_status` correctly splits tasks by completed vs. pending |
 
 Simple list comprehension logic with clear inputs and outputs.
-
-### Suggested workflow
-
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
