@@ -44,6 +44,10 @@ Yes, our design changed in three ways during implementation:
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+Our scheduler uses a greedy algorithm: it sorts all incomplete tasks by priority (highest first) and packs them into the owner's time budget one by one until there is no room left. This means it may leave time on the table. For example, if the budget has 10 minutes remaining and the next task in priority order takes 15 minutes, it skips that task entirely, even if a lower-priority 10-minute task would fit perfectly. An optimal knapsack algorithm could find the combination of tasks that fills the budget most efficiently, but it would add significant complexity for a marginal benefit.
+
+This tradeoff is reasonable for a pet-care scenario because an owner's top concern is that the most important tasks, like feeding or a medical routine, always get scheduled first. Squeezing in an extra low-priority task at the cost of more complex, harder-to-debug logic is not worth it when the user base is a single pet owner managing a handful of daily tasks.
+
 ---
 
 ## 3. AI Collaboration
