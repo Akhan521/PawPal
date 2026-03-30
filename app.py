@@ -4,38 +4,7 @@ from pawpal_system import Owner, Pet, Task, Priority, Scheduler
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
 st.title("🐾 PawPal+")
-
-st.markdown(
-    """
-Welcome to the PawPal+ starter app.
-
-This file is intentionally thin. It gives you a working Streamlit app so you can start quickly,
-but **it does not implement the project logic**. Your job is to design the system and build it.
-
-Use this app as your interactive demo once your backend classes/functions exist.
-"""
-)
-
-with st.expander("Scenario", expanded=True):
-    st.markdown(
-        """
-**PawPal+** is a pet care planning assistant. It helps a pet owner plan care tasks
-for their pet(s) based on constraints like time, priority, and preferences.
-
-You will design and implement the scheduling logic and connect it to this Streamlit UI.
-"""
-    )
-
-with st.expander("What you need to build", expanded=True):
-    st.markdown(
-        """
-At minimum, your system should:
-- Represent pet care tasks (what needs to happen, how long it takes, priority)
-- Represent the pet and the owner (basic info and preferences)
-- Build a plan/schedule for a day that chooses and orders tasks based on constraints
-- Explain the plan (why each task was chosen and when it happens)
-"""
-    )
+st.caption("A pet care planning assistant — schedule, sort, filter, and detect conflicts.")
 
 if "owner" not in st.session_state:
     st.session_state.owner = Owner(name="", available_minutes=60)
@@ -97,6 +66,18 @@ if st.session_state.owner.pets:
     with col3:
         priority = st.selectbox("Priority", ["HIGH", "MEDIUM", "LOW"], index=0)
 
+    col_time, col_recur, col_interval = st.columns(3)
+    with col_time:
+        task_time = st.text_input("Scheduled time (HH:MM)", value="", placeholder="e.g. 08:30")
+    with col_recur:
+        recurring = st.checkbox("Recurring task")
+    with col_interval:
+        recurrence_interval = st.selectbox(
+            "Recurrence interval",
+            ["daily", "weekly", "biweekly", "monthly"],
+            disabled=not recurring,
+        )
+
     if st.button("Add task"):
         selected_pet = next(
             p for p in st.session_state.owner.pets if p.name == selected_pet_name
@@ -105,24 +86,89 @@ if st.session_state.owner.pets:
             title=task_title,
             duration_minutes=int(duration),
             priority=Priority[priority],
+            time=task_time,
+            recurring=recurring,
+            recurrence_interval=recurrence_interval if recurring else "",
         )
         selected_pet.add_task(new_task)
         st.success(f"Added '{task_title}' to {selected_pet_name}!")
 
-    # Show all tasks across all pets
-    all_tasks = []
-    for p in st.session_state.owner.pets:
-        for t in p.tasks:
-            all_tasks.append({
-                "Pet": t.pet_name,
-                "Task": t.title,
-                "Duration": f"{t.duration_minutes} min",
-                "Priority": t.priority.name,
-                "Done": t.completed,
-            })
+    # --- Task display with sorting and filtering ---
+    all_tasks = [t for p in st.session_state.owner.pets for t in p.tasks]
+
     if all_tasks:
-        st.write("All tasks:")
-        st.table(all_tasks)
+        st.divider()
+        st.subheader("All Tasks")
+
+        scheduler = st.session_state.scheduler
+
+        # Filtering controls
+        filter_col1, filter_col2 = st.columns(2)
+        with filter_col1:
+            filter_pet = st.selectbox(
+                "Filter by pet", ["All pets"] + pet_options, key="filter_pet"
+            )
+        with filter_col2:
+            filter_status = st.selectbox(
+                "Filter by status", ["All", "Pending", "Completed"], key="filter_status"
+            )
+
+        # Apply filters
+        filtered_tasks = all_tasks
+        if filter_pet != "All pets":
+            filtered_tasks = scheduler.filter_by_pet(filtered_tasks, filter_pet)
+        if filter_status == "Pending":
+            filtered_tasks = scheduler.filter_by_status(filtered_tasks, completed=False)
+        elif filter_status == "Completed":
+            filtered_tasks = scheduler.filter_by_status(filtered_tasks, completed=True)
+
+        # Sort by time
+        sorted_tasks = scheduler.sort_by_time(filtered_tasks)
+
+        if sorted_tasks:
+            st.table([
+                {
+                    "Pet": t.pet_name,
+                    "Task": t.title,
+                    "Time": t.time if t.time else "—",
+                    "Duration": f"{t.duration_minutes} min",
+                    "Priority": t.priority.name,
+                    "Recurring": t.recurrence_interval if t.recurring else "—",
+                    "Done": "Yes" if t.completed else "No",
+                }
+                for t in sorted_tasks
+            ])
+            st.caption(
+                f"Showing {len(sorted_tasks)} of {len(all_tasks)} task(s), sorted by scheduled time."
+            )
+        else:
+            st.info("No tasks match the current filters.")
+
+        # --- Conflict detection ---
+        timed_tasks = [t for t in all_tasks if t.time]
+        if timed_tasks:
+            conflicts = scheduler.detect_conflicts(all_tasks)
+            if conflicts:
+                st.warning(
+                    f"**{len(conflicts)} scheduling conflict(s) detected:**\n\n"
+                    + "\n".join(conflicts)
+                )
+            else:
+                st.success("No scheduling conflicts detected.")
+
+        # --- Recurring tasks summary ---
+        recurring_tasks = scheduler.get_recurring_tasks(all_tasks)
+        if recurring_tasks:
+            with st.expander(f"Recurring Tasks ({len(recurring_tasks)})"):
+                st.table([
+                    {
+                        "Pet": t.pet_name,
+                        "Task": t.title,
+                        "Interval": t.recurrence_interval,
+                        "Next Date": str(t.scheduled_date) if t.scheduled_date else "—",
+                    }
+                    for t in recurring_tasks
+                ])
     else:
         st.info("No tasks yet. Add one above.")
 else:
@@ -143,5 +189,15 @@ if st.button("Generate schedule"):
         schedule = scheduler.generate_schedule(owner)
         if schedule:
             st.write(scheduler.explain_schedule(schedule))
+
+            # Show conflict warnings for the generated schedule
+            conflicts = scheduler.detect_conflicts(schedule)
+            if conflicts:
+                st.warning(
+                    f"**{len(conflicts)} conflict(s) in your schedule:**\n\n"
+                    + "\n".join(conflicts)
+                )
+            else:
+                st.success("Schedule is conflict-free!")
         else:
             st.info("No tasks to schedule. Add some tasks first.")
